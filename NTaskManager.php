@@ -37,7 +37,9 @@ class NTaskManager{
         return $this->statsWhenReCreateTask ;
     }
   
-   
+    public function setDaemon(){
+        $this->daemon = 1;
+    }
     public function setTrace($bool){
         $this->strace = $bool;
     }
@@ -236,11 +238,16 @@ class NTaskManager{
     }
     //开启进程列表
     public function run(){
-        $this->info("TaskManager create task " );
-        $this->createTask();  
-        $this->info("TaskManager fork end " );
-        $this->wait();
-        $this->info("TaskManager finish end " );
+        if($this->deamon <= 0){
+            $this->info("TaskManager create task " );
+            $this->createTask();  
+            $this->info("TaskManager fork end " );
+            $this->wait();
+            $this->info("TaskManager finish end " );
+        }else{
+            $this->daemon();
+        }
+
     }//END func run
     public function daemon(){
         $this->daemon = 1;

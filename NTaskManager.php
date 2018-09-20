@@ -239,13 +239,15 @@ class NTaskManager{
     }
     //开启进程列表
     public function run(){
-        if($this->deamon <= 0){
+
+        if($this->daemon <= 0){
             $this->info("TaskManager create task " );
             $this->createTask();  
             $this->info("TaskManager fork end " );
             $this->wait();
             $this->info("TaskManager finish end " );
         }else{
+
             $this->daemon();
         }
 

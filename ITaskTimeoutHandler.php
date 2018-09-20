@@ -1,7 +1,7 @@
 <?php
 namespace LT\Duoduo\Task;
 
-interface ITimeoutHandler{
+interface ITaskTimeoutHandler{
     /**
      * @var NContext $context 
      * 

@@ -1,6 +1,27 @@
 <?php
 namespace LT\Duoduo\Task;
-class NDefaultTimeoutHandler implements ITimeoutHandler{
+class NDefaultTaskTimeoutHandler implements ITaskTimeoutHandler{
+    private $logger ;
+    function __construct( ILogger $logger)
+    {
+        $this->logger = $logger;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getLogger()
+    {
+        return $this->logger;
+    }
+
+    /**
+     * @param mixed $logger
+     */
+    public function setLogger($logger)
+    {
+        $this->logger = $logger;
+    }
 
     public function processTimeout($context){
         $execOutput = [];

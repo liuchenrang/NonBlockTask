@@ -1,0 +1,15 @@
+{
+    "name": "duoduo/task",
+    "authors": [
+        {
+            "name": "多多",
+            "email": "duoduo@xiaoshijie.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Duoduo/Task":"./"
+        }
+    },
+    "require": {}
+}

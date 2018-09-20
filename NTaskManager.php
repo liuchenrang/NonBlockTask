@@ -21,7 +21,7 @@ class NTaskManager{
     private $childrenPIDInfo = [];
     private $childrenStatInfo = [];
     private $debug = false;
-    private $taskTimeoutHandler ;
+    private $confirmDieActionHandler ;
     private $parseExetime = 5;
     private $strace = false;
     private $maxProcessCount = 1;
@@ -35,6 +35,9 @@ class NTaskManager{
     }
     public function getStatsWhenReCreateTask(){
         return $this->statsWhenReCreateTask ;
+    }
+    public function setTimeoutHandler($hander){
+        $this->timeoutHandler = $hander;
     }
   
     public function setDaemon(){
@@ -62,11 +65,11 @@ class NTaskManager{
     public function __construct(){
         $this->pid = function_exists('posix_getpid') ? posix_getpid() : getmypid();
     }
-    public function setTaskTimeoutHandler($timeout){
-        $this->taskTimeoutHandler = $timeout;
+    public function setConfirmDieActionHandler($timeout){
+        $this->confirmDieActionHandler = $timeout;
     }
-    public function getTaskTimeoutHandler(){
-        return   is_subclass_of($this->taskTimeoutHandler, IConfirmDieTimeout::class) ? $this->taskTimeoutHandler : new NDefaultConfirmDieTimeout($this->defaultDieTime);
+    public function getConfirmDieActionHandler(){
+        return   is_subclass_of($this->confirmDieActionHandler, IConfirmDieTimeout::class) ? $this->confirmDieActionHandler : new NDefaultConfirmDieAction($this->defaultDieTime);
     }
     public static function getChildPidByPpid($ppid){
         $cmd = "ps -ef|grep -v ef|awk '$3=={$ppid}{print $2}'";
@@ -172,9 +175,7 @@ class NTaskManager{
         return $buffer;
     }
 
-    public function setTimeoutHandler($zz){
-        $this->timeoutHandler = $zz;
-    }
+ 
     //添加进程至控制器 
     //如果添加失败 则返回false
     public function add($task, $method, array $params=array() ){
@@ -334,7 +335,7 @@ class NTaskManager{
     }
     function stats(){
         $stats = $this->getChildrenStatInfo();
-        $this->getTaskTimeoutHandler()->stats($stats);
+        $this->getconfirmDieActionHandler()->stats($stats);
 
     }
 
@@ -386,7 +387,7 @@ class NTaskManager{
         $pid = $pidInfo['pid'];
 
         $now = time();    
-        $defaultDieTime = $this->getTaskTimeoutHandler()->getDieTimeout($statInfo);
+        $defaultDieTime = $this->getConfirmDieActionHandler()->getDieTimeout($statInfo);
         $aliveExpireTime = $pidInfo['startTime'] + $defaultDieTime;
         if($aliveExpireTime < $now && $this->haveStrace()){
             $traceCmd = "strace -p $pid";

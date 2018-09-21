@@ -6,6 +6,11 @@ if (!function_exists('pcntl_fork')) die('PCNTL functions not available on this P
 use LT\Duoduo\Task\IConfirmDieTimeout;
 use Exception;
 
+/**
+ * Class NTaskManager
+ * 任务管理
+ * @package LT\Duoduo\Task
+ */
 class NTaskManager
 {
 
@@ -45,6 +50,7 @@ class NTaskManager
     public function setPstack($pstack)
     {
         $this->pstack = $pstack;
+        return $this;
     }
 
 
@@ -62,8 +68,19 @@ class NTaskManager
     public function setProgramNum($programNum)
     {
         $this->programNum = $programNum;
+        return $this;
+
     }
 
+    /**
+     * 批量添加任务
+     *
+     * @param $programCount
+     * 类目
+     * @param $className
+     * @param $method
+     * @param $params
+     */
     public function addMultiTask($programCount, $className, $method, $params)
     {
         $this->setProgramNum($programCount);
@@ -71,11 +88,14 @@ class NTaskManager
         for ($i = $start; $i < $this->getProgramNum(); $i++) {
             $this->add($className, $method, (array($i)));
         }
+        return $this;
     }
 
     public function setStatsWhenReCreateTask($bool)
     {
         $this->statsWhenReCreateTask = $bool;
+        return $this;
+
     }
 
     public function getStatsWhenReCreateTask()
@@ -86,21 +106,33 @@ class NTaskManager
     public function setTaskTimeoutHandler($handler)
     {
         $this->taskTimeoutHandler = $handler; //handler
+        return $this;
+
     }
 
-    public function setDaemon()
+    public function setDaemon($bool)
     {
-        $this->daemon = 1;
+        $this->daemon = $bool;
+        return $this;
+
     }
 
+    /**
+     * 是否开启跟踪
+     * @param boolean $bool
+     */
     public function setTrace($bool)
     {
         $this->strace = $bool;
+        return $this;
+
     }
 
     public function setDebug($bool)
     {
         $this->debug = $bool;
+        return $this;
+
     }
 
     public function isStrace()
@@ -111,11 +143,15 @@ class NTaskManager
     public function setLogger($logger)
     {
         $this->logger = $logger;
+        return $this;
+
     }
 
     public function setParseExetime($time)
     {
         $this->parseExetime = $time;
+        return $this;
+
     }
 
     public function getParseExetime()
@@ -133,6 +169,8 @@ class NTaskManager
     public function setConfirmDieActionHandler($timeout)
     {
         $this->confirmDieActionHandler = $timeout;
+        return $this;
+
     }
 
     public static function defaultManger($logger)
@@ -140,9 +178,9 @@ class NTaskManager
         $ztm = new NTaskManager();
         $ztm->setTaskTimeoutHandler(new NDefaultTaskTimeoutHandler($logger));
         $ztm->setLogger($logger);
-        $ztm->setDebug(true);
         $ztm->setStatsWhenReCreateTask(true);
         $ztm->setTrace(true);
+        $ztm->setDaemon(1);
         $ztm->setParseExetime(5);
         return $ztm;
     }
@@ -286,6 +324,8 @@ class NTaskManager
     public function setMaxProcessCount($count)
     {
         $this->maxProcessCount = $count;
+        return $this;
+
     }
 
     public function getMaxProcessCount()
@@ -304,6 +344,7 @@ class NTaskManager
         if (is_subclass_of($task, IMultiTask::class)) {
             $task->setMaxProcessCount($this->getMaxProcessCount());
         }
+
         $pid  = $task->fork(new $className, $method, $params, $this->pid);  //ZTask 类实现
         $time = time();
         $this->info("TaskManager 1 ppid {$this->pid} child  pid  " . $pid);

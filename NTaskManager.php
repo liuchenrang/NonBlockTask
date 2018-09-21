@@ -18,6 +18,7 @@ class NTaskManager
     private $confirmDieActionHandler;
     private $parseExetime = 5;
     private $strace = false;
+    private $pstack = false;
     private $maxProcessCount = 1;
     private $taskId = 0;
     private $statsWhenReCreateTask = false;
@@ -25,6 +26,23 @@ class NTaskManager
     private $defaultDieTime = 5;
     private $daemon = 0;
     private $programNum = 0;
+
+    /**
+     * @return bool
+     */
+    public function isPstack()
+    {
+        return $this->pstack;
+    }
+
+    /**
+     * @param bool $pstack
+     */
+    public function setPstack($pstack)
+    {
+        $this->pstack = $pstack;
+    }
+
 
     /**
      * @return int
@@ -268,7 +286,7 @@ class NTaskManager
         $taskInfo = $this->taskPool[$taskId];
         list($className, $method, $params) = $taskInfo;
         $task = new $className;
-        if (is_subclass_of($task, IMutiTask::class)) {
+        if (is_subclass_of($task, IMultiTask::class)) {
             $task->setMaxProcessCount($this->getMaxProcessCount());
         }
         $pid = $task->fork($method, $params, $this->pid);  //ZTask 类实现
@@ -411,6 +429,12 @@ class NTaskManager
         exec('strace -V', $execOutput, $execStatus);
         return count($execOutput) >= 1 && strpos($execOutput[0], "strace") !== false;
     }
+    protected function havePStack()
+    {
+        $execOutput = [];
+        exec('whereis pstack', $execOutput, $execStatus);
+        return count($execOutput) >= 1 && strpos($execOutput[0], "pstack") !== false;
+    }
 
     function getChildrenStatInfo()
     {
@@ -485,17 +509,19 @@ class NTaskManager
         $aliveExpireTime = $pidInfo['startTime'] + $defaultDieTime;
         if ($aliveExpireTime < $now && $this->haveStrace()) {
             $traceCmd = "strace -p $pid";
-            $this->info("TaskManager timeout triger parse! traceCmd $traceCmd \r\n");
+            $this->info("TaskManager timeout trigger parse! traceCmd $traceCmd \r\n");
             try {
                 $output = $this->execWithTimeout($traceCmd, $this->getParseExetime());
             } catch (\Exception $e) {
                 $output = $e->getMessage();
             }
             $call = $this->taskTimeoutHandler;
+            $output .= $this->doPStack($pidInfo);
             if (is_subclass_of($call, ITaskTimeoutHandler::class)) {
                 $context = new NContext();
                 $context->pid = $pid;
                 $context->ppid = $pidInfo['ppid'];
+                $context->taskName = $statInfo->taskName;
                 $context->traceInfo = $output;
                 $call->processTimeout($context);
             } else {
@@ -505,5 +531,21 @@ class NTaskManager
         }
         $this->info("TaskManager check child status $pid startTime {$pidInfo['startTime']} aliveExpireTime $aliveExpireTime defaultDieTime $defaultDieTime  now $now\r\n");
         sleep(1);
+    }
+    private function doPStack($pidInfo)
+    {
+        $pid = $pidInfo['pid'];
+        $output = PHP_EOL . "pstack $pid " . PHP_EOL;
+        if ($this->havePStack()) {
+            $traceCmd = "pstack $pid";
+            $this->info("TaskManager timeout trigger parse! pstackCmd $traceCmd \r\n");
+            try {
+                $output = $this->execWithTimeout($traceCmd, $this->getParseExetime());
+            } catch (\Exception $e) {
+                $output = $e->getMessage();
+            }
+        }
+        return $output;
+
     }
 }//END class ZTaskManager 

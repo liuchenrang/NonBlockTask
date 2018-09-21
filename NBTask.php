@@ -6,9 +6,8 @@
  * Time: 下午1:25
  */
 namespace LT\Duoduo\Task;
-use Phalcon\CLI\Task;
-
-class NBTask extends Task implements ITask
+use Exception;
+class NBTask  implements ITask, IMultiTask
 {
 
     //该子程进程ID
@@ -26,19 +25,23 @@ class NBTask extends Task implements ITask
         return $this->maxProcessCount ;
     }
     //开启子进程
+
+    /**
+     * @param $method
+     * @param array $params
+     * @param null $ppid
+     * @return int
+     * @throws Exception
+     */
     public function fork($method, array $params=array(), $ppid=null){
         $pid = pcntl_fork();
         $this->parentPid = $ppid;
         if ($pid == -1) {
             throw new Exception ('fork error on Task object');
-            exit(1);
-
         } elseif ($pid) {
             # we are in parent class
             $this->childPid = $pid;
             return $pid;
-            Logger::Info(" ppid  " . posix_getpid() );
-            
         } else{
             $this->parentPid = is_null($ppid) ? posix_getppid() : $ppid;
             $this->childPid  = function_exists('posix_getpid') ? posix_getpid() : getmypid();
@@ -50,16 +53,44 @@ class NBTask extends Task implements ITask
             }
             exit(0); //显式调用中断
         }
+    }
+
+
+
+    /**
+     * @return null
+     */
+    public function getChildPid()
+    {
+        return $this->childPid;
+    }
+
+    /**
+     * @param null $childPid
+     */
+    public function setChildPid($childPid)
+    {
+        $this->childPid = $childPid;
+    }
+
+    /**
+     * @return null
+     */
+    public function getParentPid()
+    {
+        return $this->parentPid;
+    }
+
+    /**
+     * @param null $parentPid
+     */
+    public function setParentPid($parentPid)
+    {
+        $this->parentPid = $parentPid;
     }//END func fork
 
 
-    //返回自身的PID
-    public  function getPid(){
-        return $this->childPid;
-    }//END func getpid
-    public  function getPpid(){
-        return $this->parentPid;
-    }//END func getppid
+
 
     //结束
     public function finish(){

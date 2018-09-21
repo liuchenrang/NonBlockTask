@@ -1,5 +1,7 @@
 <?php
 namespace LT\Duoduo\Task;
-interface IMutiTask{
+interface IMultiTask{
     function getMaxProcessCount();
+
+
 }

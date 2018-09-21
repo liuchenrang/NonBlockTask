@@ -7,6 +7,13 @@
  */
 namespace LT\Duoduo\Task;
 use Exception;
+
+/**
+ * Class NBTask
+ * 多进程基础类 ， 处理
+ * @package LT\Duoduo\Task
+ * @author duoduo
+ */
 class NBTask  implements ITask, IMultiTask
 {
 

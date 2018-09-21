@@ -20,9 +20,8 @@ $ztm->setLogger(new Logger());
 
 //开启strace后，收集执行时间
 $ztm->setParseExetime(10)
-
-
-$ztm->setConfirmDieActionHandler(new NDefaultConfirmDieAction());
+//自定义超时确认机制
+$ztm->setConfirmDieActionHandler(new NDefaultConfirmDieAction(10));
 
 
 
@@ -31,5 +30,105 @@ $ztm->setMaxProcessCount(30)
 for ($i = $params['i']; $i < $threadNum; $i++) {
     $ztm->add(__CLASS__, $method, (array($i)));
 }
+
+//简版创建多个进程方法
+$ztm->addMultiTask($threadNum,__CLASS__, $method, array('i' => 0) );
+
 $ztm->run();
+
+
+
+/**
+ * Interface IConfirmDieAction
+ * @package LT\Duoduo\Task
+ * @author  duoduo
+ */
+interface IConfirmDieAction{
+    /**
+     * @param array $stats
+     * 数组类型， 元素是一个NStatContext ，统计回收数据，评估结束时间
+     * @return mixed
+     */
+    public function stats($stats);
+
+    /**
+     * @param $data
+     * 元素是一个NStatContext 返回任务任务已经挂掉的时间单位秒
+     * @return mixed
+     */
+    public function getDieTimeout($data);
+}
+NDefaultConfirmDieAction 默认实现类 返回一个构造器的时间
+
+/**
+ * Interface ITaskTimeoutHandler
+ * @package LT\Duoduo\Task
+ * @author duoduo
+ */
+interface ITaskTimeoutHandler{
+    /**
+     * @var NContext $context 
+     * 超时发生时， 怎么处理进程
+     */
+    public  function processTimeout( $context);
+  
+}
+
+NDefaultTaskTimeoutHandler 默认实现类， 调用NLogger 的notify接口 
+
+
+//demo
+use LT\Duoduo\Task\NTaskManager;
+use LT\Duoduo\Task\NDefaultTaskTimeoutHandler;
+use LT\Duoduo\Task\NLogger;
+
+
+class DuoduoTask extends BaseTask
+{
+    public function importAction()
+    {
+        $method = 'processOrder';
+        $threadNum = 2;
+        $ztm = new NTaskManager();
+        $ztm->setTaskTimeoutHandler(new NDefaultTaskTimeoutHandler(new NLogger()));
+        $ztm->setLogger(new NLogger());
+        $ztm->setDebug(true);
+        $ztm->addMultiTask($threadNum,__CLASS__, $method, array('i' => 0) );
+        $ztm->setStatsWhenReCreateTask(true);
+        $ztm->setTrace(true);
+        $ztm->setParseExetime(10);
+        $ztm->setDaemon(1);
+        $ztm->run();
+
+        NTaskManager::defaultManger(new NLogger())
+            ->setProgramNum(5)
+            ->setDebug(true)
+            ->addMultiTask($threadNum,__CLASS__, $method, array('i' => 0))
+            ->run();
+
+    }
+
+
+
+    public function processOrder($i){
+        $sleep = 0;
+        if($i % 3 == 1){
+            $sleep = 10;
+        }
+        $pid  = $this->getpid();
+        file_put_contents("/tmp/run.log", ("processOrder sleep {$sleep}  pid $pid end " . $i . "\r\n"), FILE_APPEND);
+
+    }
+    public function socket(){
+        $fp = fsockopen("tcp://redis", 6379, $errno, $errstr);
+        if (!$fp) {
+            echo "ERROR: $errno - $errstr<br />\n";
+        } else {
+            fwrite($fp, "\n");
+            echo fread($fp, 1026);
+            // fclose($fp);
+        }
+    }
+}
+
 ```

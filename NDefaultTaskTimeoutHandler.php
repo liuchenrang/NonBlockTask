@@ -27,7 +27,7 @@ class NDefaultTaskTimeoutHandler implements ITaskTimeoutHandler{
         if(isset($context->pid)){
             if(isset( $context->ppid ) && NTaskManager::getPpidWithPid($context->pid) == $context->ppid){
                    $killStatus = posix_kill($context->pid, 9);
-                   $this->getLogger()->info ("TaskManager  kill " . $killStatus . "\r\n");
+                   $this->getLogger()->debug ("TaskManager  kill " . $killStatus . "\r\n");
             }
             if(isset($context->traceInfo)){
                 $this->getLogger()->notify('taskName ' . $context->taskName .' '. $context->traceInfo );

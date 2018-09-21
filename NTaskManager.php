@@ -1,8 +1,11 @@
 <?php
+
 namespace LT\Duoduo\Task;
 if (!function_exists('pcntl_fork')) die('PCNTL functions not available on this PHP installation');
+
 use LT\Duoduo\Task\IConfirmDieTimeout;
 use Exception;
+
 class NTaskManager
 {
 
@@ -26,6 +29,7 @@ class NTaskManager
     private $defaultDieTime = 5;
     private $daemon = 0;
     private $programNum = 0;
+    private $nbTask;
 
     /**
      * @return bool
@@ -60,9 +64,11 @@ class NTaskManager
         $this->programNum = $programNum;
     }
 
-    public function addMultiTask($className, $method, $params)
+    public function addMultiTask($programCount, $className, $method, $params)
     {
-        for ($i = $params['i']; $i < $this->getProgramNum(); $i++) {
+        $this->setProgramNum($programCount);
+        $start = $params['i'];
+        for ($i = $start; $i < $this->getProgramNum(); $i++) {
             $this->add($className, $method, (array($i)));
         }
     }
@@ -121,11 +127,24 @@ class NTaskManager
     public function __construct()
     {
         $this->pid = function_exists('posix_getpid') ? posix_getpid() : getmypid();
+        $this->nbTask = new NBTask();
     }
 
     public function setConfirmDieActionHandler($timeout)
     {
         $this->confirmDieActionHandler = $timeout;
+    }
+
+    public static function defaultManger($logger)
+    {
+        $ztm = new NTaskManager();
+        $ztm->setTaskTimeoutHandler(new NDefaultTaskTimeoutHandler($logger));
+        $ztm->setLogger($logger);
+        $ztm->setDebug(true);
+        $ztm->setStatsWhenReCreateTask(true);
+        $ztm->setTrace(true);
+        $ztm->setParseExetime(5);
+        return $ztm;
     }
 
     public function getConfirmDieActionHandler()
@@ -248,10 +267,6 @@ class NTaskManager
     //如果添加失败 则返回false
     public function add($task, $method, array $params = array())
     {
-        //校验对象task是否继承ZTask
-        if (false == is_subclass_of($task, ITask::class)) {
-            exit("task must extends " . ITask::class);
-        }
         //校验method是否存在
         if (method_exists($task, $method)) {
             $taskId = ++$this->taskId;
@@ -285,11 +300,11 @@ class NTaskManager
         }
         $taskInfo = $this->taskPool[$taskId];
         list($className, $method, $params) = $taskInfo;
-        $task = new $className;
+        $task = $this->nbTask;
         if (is_subclass_of($task, IMultiTask::class)) {
             $task->setMaxProcessCount($this->getMaxProcessCount());
         }
-        $pid = $task->fork($method, $params, $this->pid);  //ZTask 类实现
+        $pid  = $task->fork(new $className, $method, $params, $this->pid);  //ZTask 类实现
         $time = time();
         $this->info("TaskManager 1 ppid {$this->pid} child  pid  " . $pid);
         $this->childrenPIDInfo[$taskId] = [
@@ -346,14 +361,15 @@ class NTaskManager
             pcntl_signal_dispatch();
             $childrenPids = $this->childrenPIDInfo;
             $this->info("TaskManager daemon  watchRun ing ");
-            $keepAliveList = self::getChildPidByPpid($this->pid); //这里必须放在watchRunging 前面， 保证keepaliveList集合大于，当前运行的集合。
-            $this->watchRunging($childrenPids);
+            $keepAliveList = self::getChildPidByPpid($this->pid); //这里必须放在watchRuning 前面， 保证keepaliveList集合大于，当前运行的集合。
+            $this->watchRuning($childrenPids);
             $this->checkHealth($keepAliveList); //移除退出信息后， 进程快照和内存快照是否一致！
 
             $stopTasks = $this->getStopTasksId();
             $this->info("TaskManager stop task id " . json_encode($stopTasks));
             $this->startStopping($stopTasks);
             // exit;
+            sleep(1);
         }
 
     }
@@ -373,7 +389,7 @@ class NTaskManager
             }
             // var_dump($keepaliveList, $pidInfo);exit;
         }
-        if (count($this->childrenPIDInfo) > count($keepaliveList)) {
+        if (count($this->childrenPIDInfo) > $this->getProgramNum()) {
             throw new Exception("TaskManager child  more than keep ");
         }
     }
@@ -429,6 +445,7 @@ class NTaskManager
         exec('strace -V', $execOutput, $execStatus);
         return count($execOutput) >= 1 && strpos($execOutput[0], "strace") !== false;
     }
+
     protected function havePStack()
     {
         $execOutput = [];
@@ -459,17 +476,17 @@ class NTaskManager
         }
     }
 
-    private function watchRunging($childrenPids)
+    private function watchRuning($childrenPids)
     {
         foreach ($childrenPids as $taskId => $pidInfo) {
-            if (!isset($pidInfo['pid'])) continue;
+//            if (!isset($pidInfo['pid'])) continue;
             $pid = $pidInfo['pid'];
             $res = pcntl_waitpid($pid, $status, WNOHANG);
             // If the process has already exited
             if ($res == -1 || $res > 0) {
                 try {
                     $this->handlerFinishTask($taskId);
-                    $this->info("TaskManager extit taskId $taskId pid $pid \r\n");
+                    $this->info("TaskManager ExitTaskId $taskId pid $pid \r\n");
                     $this->handlerTaskExit($taskId);
                 } finally {
                     $this->removeRunTask($taskId);
@@ -494,16 +511,23 @@ class NTaskManager
     {
         do {
             $childrenPids = $this->childrenPIDInfo;
-            $this->watchRunging($childrenPids);
+            $this->watchRuning($childrenPids);
             sleep(1);
         } while (count($childrenPids));
 
     }//END func finish
 
+    /**
+     * @param $pidInfo
+     * @param $statInfo
+     * @throws Exception
+     */
     private function handlerStrace($pidInfo, $statInfo)
     {
+        if(!isset($pidInfo['pid'])){
+            throw new Exception("handler strace pidinfo not include pid!");
+        }
         $pid = $pidInfo['pid'];
-
         $now = time();
         $defaultDieTime = $this->getConfirmDieActionHandler()->getDieTimeout($statInfo);
         $aliveExpireTime = $pidInfo['startTime'] + $defaultDieTime;
@@ -532,11 +556,13 @@ class NTaskManager
         $this->info("TaskManager check child status $pid startTime {$pidInfo['startTime']} aliveExpireTime $aliveExpireTime defaultDieTime $defaultDieTime  now $now\r\n");
         sleep(1);
     }
+
     private function doPStack($pidInfo)
     {
+
         $pid = $pidInfo['pid'];
         $output = PHP_EOL . "pstack $pid " . PHP_EOL;
-        if ($this->havePStack()) {
+        if ($this->havePStack() && $pid) {
             $traceCmd = "pstack $pid";
             $this->info("TaskManager timeout trigger parse! pstackCmd $traceCmd \r\n");
             try {

@@ -26,14 +26,8 @@ class NBTask  implements ITask, IMultiTask
     }
     //开启子进程
 
-    /**
-     * @param $method
-     * @param array $params
-     * @param null $ppid
-     * @return int
-     * @throws Exception
-     */
-    public function fork($method, array $params=array(), $ppid=null){
+
+    public function fork($instance, $method, array $params=array(), $ppid=null){
         $pid = pcntl_fork();
         $this->parentPid = $ppid;
         if ($pid == -1) {
@@ -49,7 +43,7 @@ class NBTask  implements ITask, IMultiTask
             //调用子进程方法
             $maxCount = $this->getMaxProcessCount();
             for ($i=0; $i < $maxCount; $i++) { 
-                call_user_func_array(array($this,$method), $params);
+                call_user_func_array(array($instance,$method), $params);
             }
             exit(0); //显式调用中断
         }

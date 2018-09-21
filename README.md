@@ -1,4 +1,18 @@
+
 ```shell
+快速集成
+采用 NTaskManager
+//方法
+        NTaskManager::defaultManger(new NLogger())
+            ->setProgramNum(5)
+            ->setDebug(true)
+            ->addMultiTask($threadNum,__CLASS__, $method, array('i' => 0))
+            ->run();
+//支持钉钉报警
+$logger = new NDingDingLogger("https://oapi.dingtalk.com/robot/send?access_token=82137b9f44d286cb92960eea2fc6f7a25d2ed634244b2bb96f01a85b7610e787");
+ztm->setTaskTimeoutHandler(new NDefaultTaskTimeoutHandler($logger));
+
+
 软重启
 kill -1 pid
 //使用方式 

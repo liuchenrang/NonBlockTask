@@ -30,6 +30,7 @@ class NPStackTraceHandler extends NBaseTraceHandler
                 $output = $e->getMessage();
             }
         }
+
         return $output;
 
     }

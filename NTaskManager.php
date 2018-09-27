@@ -585,7 +585,7 @@ class NTaskManager
                 } else {
                     $this->info('ITaskTimeoutHandler is not\r\n');
                 }
-                $this->info("traceOutput:" . $output . '\r\n');
+                $this->info("traceOutput:" . $traceInfo . '\r\n');
             }
 
         }

@@ -27,7 +27,7 @@ class NPHPTraceTraceHandler extends NBaseTraceHandler
         } catch (\Exception $e) {
             $output = $e->getMessage();
         }
-        return $output;
+        return $output . '';
 
     }
 }

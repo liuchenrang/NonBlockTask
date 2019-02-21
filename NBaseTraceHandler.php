@@ -10,6 +10,7 @@ namespace LT\Duoduo\Task;
 
 class NBaseTraceHandler implements ITrace
 {
+    
     protected $manager ;
                     
     public function __construct($manager){
@@ -50,7 +51,7 @@ class NBaseTraceHandler implements ITrace
                 // Wait until we have output or the timer expired.
                 $read = array($pipes[1]);
                 $other = array();
-                stream_select($read, $other, $other, 0, $timeout);
+                @stream_select($read, $other, $other, 0, $timeout);
                 // Get the status of the process.
                 // Do this before we read from the stream,
                 // this way we can't lose the last bit of output if the process dies between these     functions.

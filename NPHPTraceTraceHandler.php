@@ -10,7 +10,16 @@ namespace LT\Duoduo\Task;
 
 class NPHPTraceTraceHandler extends NBaseTraceHandler
 {
+    private $support = false;
+    public function __construct($manger){
+            parent::__construct($manger);
+            $this->support = $this->checkSupport();
+    }
     public function isSupport()
+    {
+       return $this->support;
+    }
+    public function checkSupport()
     {
         $execOutput = [];
         exec('phptrace -h', $execOutput, $execStatus);

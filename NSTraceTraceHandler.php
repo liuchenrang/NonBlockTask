@@ -11,7 +11,16 @@ namespace LT\Duoduo\Task;
 use Exception;
 class NSTraceTraceHandler extends NBaseTraceHandler
 {
+     private $support = false;
+    public function __construct($manger){
+            parent::__construct($manger);
+            $this->support = $this->checkSupport();
+    }
     public function isSupport()
+    {
+       return $this->support;
+    }
+    public function checkSupport()
     {
         $execOutput = [];
         exec('strace -V', $execOutput, $execStatus);

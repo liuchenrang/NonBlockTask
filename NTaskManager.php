@@ -212,7 +212,7 @@ class NTaskManager
 
     public static function getChildPidByPpid($ppid)
     {
-        $cmd = "ps -ef|grep -v ef|awk '$3=={$ppid}{print $2}'";
+        $cmd = "ps -ef|grep -v ef|grep php|awk '$3=={$ppid}{print $2}'";
         exec($cmd, $execOutput, $status);
         if (isset($execOutput[0])) {
             return $execOutput;
@@ -462,12 +462,18 @@ class NTaskManager
                     throw new Exception($info);
                 }
                 $this->info("TaskManager checkHealth " . $pidInfo['pid']);
-
             }
-            // var_dump($keepaliveList, $pidInfo);exit;
         }
-        if (count($this->childrenPIDInfo) > $this->getProgramNum()) {
-            throw new Exception("TaskManager child  more than keep ");
+        $currentThreadCount = count($this->childrenPIDInfo);
+        $traceCount = array_reduce($this->childrenPIDInfo,function($total, $item){
+                if(isset($item["isDoTrace"])){
+                    $total += 1;
+                }
+                return $total;
+        });
+        if ($currentThreadCount > $this->getProgramNum() + $traceCount ) {
+            
+            throw new Exception("TaskManager child  more than keep currentThreadCount $currentThreadCount traceCount $traceCount pscount " . $this->getProgramNum());
         }
     }
 
@@ -613,19 +619,32 @@ class NTaskManager
     private function handlerStrace($pidInfo, $statInfo)
     {
         if (!isset($pidInfo['pid'])) {
-            throw new Exception("handler strace pidinfo not include pid!");
+            throw new Exception("handler strace pidinfo not include pid! pidInfo " . json_encode($pidInfo));
         }
         $pid = $pidInfo['pid'];
         $now = time();
         $defaultDieTime = $this->getConfirmDieActionHandler()->getDieTimeout($statInfo);
         $aliveExpireTime = $pidInfo['startTime'] + $defaultDieTime;
-        $latestPidInfo = $this->childrenPIDInfo[$pid];
-        if ($aliveExpireTime < $now && !isset($latestPidInfo["isDoTrrace"])) {
-            $pid = $task->forkCallable(function()use($pidInfo, $statInfo){
+        $latestPidInfo = [];
+        foreach($this->childrenPIDInfo as $key => $detailInfo){
+                        if($detailInfo["pid"] == $pid){
+                            $latestPidInfo = $detailInfo;
+                        }
+        }
+        if(!$latestPidInfo){
+            throw new Exception("handlerstrace could‘t find pid info " . json_encode($pidInfo));
+        }
+        if ($aliveExpireTime < $now && !isset($latestPidInfo["isDoTrace"])) {
+            $pid = $this->nbTask->forkCallable(function()use($pidInfo, $statInfo){
                 $this->doTrace($pidInfo, $statInfo);
             }, [], $this->pid); //ZTask 类实现
-            $this->childrenPIDInfo[$pid]["isDoTrrace"] = true;
+                 foreach($this->childrenPIDInfo as $key => $detailInfo){
+                        if($detailInfo["task"]->getChildPid() == $pid){
+                            $this->childrenPIDInfo[$key]["isDoTrace"] = true;
+                        }
+                 }
         }
+        $this->info("la" .  json_encode($latestPidInfo));
         $this->info("TaskManager check child status $pid startTime {$pidInfo['startTime']} aliveExpireTime $aliveExpireTime defaultDieTime $defaultDieTime  now $now\r\n");
         sleep(1);
     }

@@ -56,6 +56,27 @@ class NBTask  implements ITask, IMultiTask
         }
     }
 
+    public function forkCallable($method, array $params=array(), $ppid=null){
+        $pid = pcntl_fork();
+        $this->parentPid = $ppid;
+        if ($pid == -1) {
+            throw new Exception ('fork error on Task object');
+        } elseif ($pid) {
+            # we are in parent class
+            $this->childPid = $pid;
+            return $pid;
+        } else{
+            $this->parentPid = is_null($ppid) ? posix_getppid() : $ppid;
+            $this->childPid  = function_exists('posix_getpid') ? posix_getpid() : getmypid();
+            //echo "A = ppid:".self::$ppid." pid:".self::$pid."\n";
+            //调用子进程方法
+            $maxCount = $this->getMaxProcessCount();
+            for ($i=0; $i < $maxCount; $i++) { 
+               $method($params);
+            }
+            exit(0); //显式调用中断
+        }
+    }
 
 
     /**

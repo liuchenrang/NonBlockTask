@@ -104,6 +104,17 @@ class NTaskManager
         return $this;
     }
 
+    public function addMultiCallableTask($programCount, $callable, $params)
+    {
+        $this->setProgramNum($programCount);
+        for ($i = $start; $i < $this->getProgramNum(); $i++) {
+           $result = $this->addCallable($callable, $params);
+           if(!$result){
+               throw new \Exception("add callable fail!");
+           }
+        }
+        return $this;
+    }
     public function setStatsWhenReCreateTask($bool)
     {
         $this->statsWhenReCreateTask = $bool;
@@ -219,6 +230,15 @@ class NTaskManager
         } else {
             return 0;
         }
+    }
+    public function addCallable($callable, $params){
+           //校验method是否存在
+        if (is_callable($callable, false) ) {
+            $taskId = ++$this->taskId;
+            $this->taskPool[$taskId] = array($callable, $params);
+            return true;
+        }
+        return false;
     }
 
     public static function getPpidWithPid($pid)
@@ -347,13 +367,21 @@ class NTaskManager
             return false;
         }
         $taskInfo = $this->taskPool[$taskId];
-        list($className, $method, $params) = $taskInfo;
-        $task = $this->nbTask;
-        if (is_subclass_of($task, IMultiTask::class)) {
+        $taskType = count($taskInfo) == 3 ? 1 : 2;
+        if($taskType == 1){
+            list($className, $method, $params) = $taskInfo;
+            $task = $this->nbTask;
+            if (is_subclass_of($task, IMultiTask::class)) {
+                $task->setMaxProcessCount($this->getMaxProcessCount());
+            }
+            $pid = $task->fork(new $className, $method, $params, $this->pid); //ZTask 类实现
+        } else {
+            list($method, $params) = $taskInfo;
+            $task = $this->nbTask;
             $task->setMaxProcessCount($this->getMaxProcessCount());
+            $pid = $task->forkCallable($method, $params, $this->pid); //ZTask 类实现
         }
-
-        $pid = $task->fork(new $className, $method, $params, $this->pid); //ZTask 类实现
+        
         $time = time();
         $this->info("TaskManager 1 ppid {$this->pid} child  pid  " . $pid);
         $this->childrenPIDInfo[$taskId] = [
@@ -363,7 +391,7 @@ class NTaskManager
             'startTime' => $time,
         ];
         $stat = new NStatContext();
-        $stat->taskName = $className . '::' . $method;
+        $stat->taskName = $taskType == 1 ? $className . '::' . $method : "callable::".$taskId;
         $stat->startTime = $time;
         $stat->stopTime = 0;
         $stat->pid = $pid;
@@ -529,7 +557,11 @@ class NTaskManager
             } else {
                 if ($this->isStrace()) {
                     $statInfo = $this->childrenStatInfo[$taskId];
-                    $this->handlerStrace($pidInfo, $statInfo);
+                    $task = $this->nbTask;
+                    $task->setMaxProcessCount($this->getMaxProcessCount());
+                    $this->handlerStrace($pidInfo, $statInfo);                        
+
+                   
                 }
             }
         }
@@ -551,22 +583,7 @@ class NTaskManager
         } while (count($childrenPids));
 
     } //END func finish
-
-    /**
-     * @param $pidInfo
-     * @param $statInfo
-     * @throws Exception
-     */
-    private function handlerStrace($pidInfo, $statInfo)
-    {
-        if (!isset($pidInfo['pid'])) {
-            throw new Exception("handler strace pidinfo not include pid!");
-        }
-        $pid = $pidInfo['pid'];
-        $now = time();
-        $defaultDieTime = $this->getConfirmDieActionHandler()->getDieTimeout($statInfo);
-        $aliveExpireTime = $pidInfo['startTime'] + $defaultDieTime;
-        if ($aliveExpireTime < $now) {
+    private function doTrace($pidInfo, $statInfo){
             $traceInfo = '';
             if (is_array($this->traceHelper)) {
                 foreach ($this->traceHelper as $trace) {
@@ -587,27 +604,30 @@ class NTaskManager
                 }
                 $this->info("traceOutput:" . $traceInfo . '\r\n');
             }
-
+    }
+    /** 
+     * @param $pidInfo
+     * @param $statInfo
+     * @throws Exception
+     */
+    private function handlerStrace($pidInfo, $statInfo)
+    {
+        if (!isset($pidInfo['pid'])) {
+            throw new Exception("handler strace pidinfo not include pid!");
+        }
+        $pid = $pidInfo['pid'];
+        $now = time();
+        $defaultDieTime = $this->getConfirmDieActionHandler()->getDieTimeout($statInfo);
+        $aliveExpireTime = $pidInfo['startTime'] + $defaultDieTime;
+        $latestPidInfo = $this->childrenPIDInfo[$pid];
+        if ($aliveExpireTime < $now && !isset($latestPidInfo["isDoTrrace"])) {
+            $pid = $task->forkCallable(function()use($pidInfo, $statInfo){
+                $this->doTrace($pidInfo, $statInfo);
+            }, [], $this->pid); //ZTask 类实现
+            $this->childrenPIDInfo[$pid]["isDoTrrace"] = true;
         }
         $this->info("TaskManager check child status $pid startTime {$pidInfo['startTime']} aliveExpireTime $aliveExpireTime defaultDieTime $defaultDieTime  now $now\r\n");
         sleep(1);
     }
 
-    private function doPStack($pidInfo)
-    {
-
-        $pid = $pidInfo['pid'];
-        $output = PHP_EOL . "pstack $pid " . PHP_EOL;
-        if ($this->havePStack() && $pid) {
-            $traceCmd = "pstack $pid";
-            $this->info("TaskManager timeout trigger parse! pstackCmd $traceCmd \r\n");
-            try {
-                $output = $this->execWithTimeout($traceCmd, $this->getParseExetime());
-            } catch (\Exception $e) {
-                $output = $e->getMessage();
-            }
-        }
-        return $output;
-
-    }
 } //END class ZTaskManager

@@ -9,7 +9,7 @@
             ->addMultiTask($threadNum,__CLASS__, $method, array('i' => 0))
             ->run();
 //支持钉钉报警
-$logger = new NDingDingLogger("https://oapi.dingtalk.com/robot/send?access_token=82137b9f44d286cb92960eea2fc6f7a25d2ed634244b2bb96f01a85b7610e787");
+$logger = new NDingDingLogger("https://oapi.dingtalk.com/robot/send?access_token=xx");
 ztm->setTaskTimeoutHandler(new NDefaultTaskTimeoutHandler($logger));
 
 

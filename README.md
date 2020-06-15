@@ -146,27 +146,3 @@ class DuoduoTask extends BaseTask
 }
 
 ```
-
-#composer加载
-1. 配置仓库
-2. 配置 minimum-stability 按设置的过滤级别选择包
-3. prefer-stable 优先使用稳定版本
-```json
-{
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "git@code.aliyun.com:duoduotw/DuoduoTask"
-        },
-        {
-            "type": "composer",
-            "url": "https://packagist.phpcomposer.com"
-        },
-        {
-            "packagist.org": false
-        }
-    ],
-    "minimum-stability":"dev",
-    "prefer-stable": true,
-}
-```

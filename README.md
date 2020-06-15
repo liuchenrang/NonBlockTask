@@ -1,6 +1,8 @@
 
 ```shell
 快速集成
+composer require duoduo/task:dev-master       
+
 采用 NTaskManager
 //方法
         NTaskManager::defaultManger(new NLogger())

@@ -45,9 +45,18 @@ class NTaskManager
     {
         $this->pid = function_exists('posix_getpid') ? posix_getpid() : getmypid();
         $this->nbTask = new NBTask();
+    }
+    public function addTrace($class)
+    {
+        $this->traceHelper[] = new $class($this);
+        return $this;
+        # code...
+    }
+    public function addAllTrace(){
         $this->traceHelper[] = new NSTraceTraceHandler($this);
         $this->traceHelper[] = new NPStackTraceHandler($this);
         $this->traceHelper[] = new NPHPTraceTraceHandler($this);
+        return $this;
     }
 
     /**
@@ -104,11 +113,14 @@ class NTaskManager
         return $this;
     }
 
-    public function addMultiCallableTask($programCount, $callable, $params)
+    public function addMultiCallableTask($callable, $params,$programCount)
     {
-        $this->setProgramNum($programCount);
+        if($programCount){
+            $this->setProgramNum($programCount);
+        }
+        $start = $params['i'];
         for ($i = $start; $i < $this->getProgramNum(); $i++) {
-           $result = $this->addCallable($callable, $params);
+           $result = $this->addCallable($callable, ["processNo"=>$i,'params'=>$params]);
            if(!$result){
                throw new \Exception("add callable fail!");
            }
